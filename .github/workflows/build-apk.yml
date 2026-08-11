@@ -20,17 +20,47 @@ jobs:
       - name: Reconstruct DrFocus 1.0 source
         shell: bash
         run: |
-          cat v10.part01.b64 v10.part02.b64 v10.part03.b64 v10.tail01.b64 v10.tail02.b64 v10.tail03a.b64 v10.tail03b.b64 v10.tail04.b64 > v10-project.b64
           python3 - <<'PY'
-          import base64, pathlib, hashlib
-          source = ''.join(pathlib.Path('v10-project.b64').read_text().split())
-          print('encoded length:', len(source))
-          assert len(source) == 85556
-          data = base64.b64decode(source, validate=True)
-          digest = hashlib.sha256(data).hexdigest()
-          print('source sha256:', digest)
-          assert digest == 'aaad3035b3a411773b2bcd525ff1d5596c9d51e89cf3806b62d148100560c766'
-          pathlib.Path('DrFocus-v1.0.0-source.zip').write_bytes(data)
+          import base64, hashlib
+          from pathlib import Path
+
+          names = [
+              'v10.part01.b64', 'v10.part02.b64', 'v10.part03.b64',
+              'v10.tail01.b64', 'v10.tail02.b64',
+              'v10.tail03a.b64', 'v10.tail03b.b64', 'v10.tail04.b64'
+          ]
+          expected_sizes = [8000, 8000, 8000, 16000, 16000, 8000, 8000, 13556]
+          target = 'aaad3035b3a411773b2bcd525ff1d5596c9d51e89cf3806b62d148100560c766'
+          chunks = [''.join(Path(n).read_text().split()) for n in names]
+          print('chunk sizes:', list(zip(names, map(len, chunks))))
+
+          def decode(parts):
+              try:
+                  data = base64.b64decode(''.join(parts), validate=True)
+              except Exception:
+                  return None
+              return data if hashlib.sha256(data).hexdigest() == target else None
+
+          data = decode(chunks)
+          if data is None:
+              candidates = [i for i, (chunk, exp) in enumerate(zip(chunks, expected_sizes)) if len(chunk) == exp + 1]
+              assert len(candidates) == 1, f'Unexpected chunk sizes; extra-char candidates={candidates}'
+              ci = candidates[0]
+              bad = chunks[ci]
+              for pos in range(len(bad)):
+                  fixed = bad[:pos] + bad[pos+1:]
+                  parts = list(chunks)
+                  parts[ci] = fixed
+                  data = decode(parts)
+                  if data is not None:
+                      print('Recovered connector transport character:', names[ci], 'index', pos)
+                      chunks[ci] = fixed
+                      break
+
+          assert data is not None, 'Unable to reconstruct exact DrFocus 1.0 source archive'
+          assert hashlib.sha256(data).hexdigest() == target
+          Path('DrFocus-v1.0.0-source.zip').write_bytes(data)
+          print('source sha256:', target)
           PY
           unzip -t DrFocus-v1.0.0-source.zip
           unzip -q DrFocus-v1.0.0-source.zip
