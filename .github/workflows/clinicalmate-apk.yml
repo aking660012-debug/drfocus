@@ -1,0 +1,61 @@
+name: Build ClinicalMate APK
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Reconstruct ClinicalMate source
+        shell: bash
+        run: |
+          cat clinicalmate.part00 clinicalmate.part01 clinicalmate.part02 clinicalmate.part03 > ClinicalMate-source.b64
+          python3 - <<'PY'
+          import base64, pathlib, hashlib
+          source = ''.join(pathlib.Path('ClinicalMate-source.b64').read_text().split())
+          data = base64.b64decode(source, validate=True)
+          digest = hashlib.sha256(data).hexdigest()
+          print('source sha256:', digest)
+          assert digest == '2a2c41314d8655beedcaf67e8b03dcdb0904534ccb31c847ded304f93910770b'
+          pathlib.Path('ClinicalMate-source.zip').write_bytes(data)
+          PY
+          unzip -t ClinicalMate-source.zip
+          unzip -q ClinicalMate-source.zip
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Build APK
+        working-directory: ClinicalMate
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK
+        run: cp ClinicalMate/app/build/outputs/apk/debug/app-debug.apk ClinicalMate-v0.1.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClinicalMate-v0.1.0-APK
+          path: ClinicalMate-v0.1.0.apk
+          if-no-files-found: error
+          retention-days: 30
