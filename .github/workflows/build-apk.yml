@@ -20,6 +20,23 @@ jobs:
       - name: Reconstruct DrFocus 1.0 source
         shell: bash
         run: |
+          wc -c v10.part01.b64 v10.part02.b64 v10.part03.b64 v10.tail01.b64 v10.tail02.b64 v10.tail03.b64 v10.tail04.b64
+          python3 - <<'PY'
+          from pathlib import Path
+          expected = {
+              'v10.part01.b64': 8000,
+              'v10.part02.b64': 8000,
+              'v10.part03.b64': 8000,
+              'v10.tail01.b64': 16000,
+              'v10.tail02.b64': 16000,
+              'v10.tail03.b64': 16000,
+              'v10.tail04.b64': 13556,
+          }
+          for name, size in expected.items():
+              actual = len(''.join(Path(name).read_text().split()))
+              print(name, actual, 'expected', size)
+              assert actual == size, f'{name}: {actual} != {size}'
+          PY
           cat v10.part01.b64 v10.part02.b64 v10.part03.b64 v10.tail01.b64 v10.tail02.b64 v10.tail03.b64 v10.tail04.b64 > v10-project.b64
           python3 - <<'PY'
           import base64, pathlib, hashlib
