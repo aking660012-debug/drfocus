@@ -1,0 +1,1 @@
+Trigger DrFocus 1.5 Personal CI after the web/strict overhaul.
