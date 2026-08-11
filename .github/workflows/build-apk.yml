@@ -63,7 +63,37 @@ jobs:
         run: |
           cat v11patch.part01.b64 v11patch.part02.b64 v11patch.part03.b64 | base64 -d | gzip -d > v11.patch
           patch -p1 < v11.patch
-          rm -f DrFocus-v1.0.0-source.zip
+
+      - name: Fix hardening compile regressions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/MainActivity.kt')
+          s = main.read_text()
+          s = s.replace(
+              'ToggleRow("إطلاق التطبيق", "إظهار شاشة الحظر عند فتح التطبيق", blockLaunch) { blockLaunch = it }',
+              'ToggleRow("إطلاق التطبيق", "إظهار شاشة الحظر عند فتح التطبيق", blockLaunch, onChecked = { blockLaunch = it })'
+          )
+          s = s.replace(
+              'ToggleRow("الإشعارات • PRO", "إلغاء إشعارات التطبيق عندما تتحقق القاعدة", blockNotifications) {\n                    if (isPro) blockNotifications = it else onUpgrade()\n                }',
+              'ToggleRow("الإشعارات • PRO", "إلغاء إشعارات التطبيق عندما تتحقق القاعدة", blockNotifications, onChecked = {\n                    if (isPro) blockNotifications = it else onUpgrade()\n                })'
+          )
+          s = s.replace(
+              'ToggleRow("احظر داخل النطاق", "أوقفه لتصبح القاعدة للحظر خارج النطاق", blockInside) { blockInside = it }',
+              'ToggleRow("احظر داخل النطاق", "أوقفه لتصبح القاعدة للحظر خارج النطاق", blockInside, onChecked = { blockInside = it })'
+          )
+          main.write_text(s)
+
+          service = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/service/FocusAccessibilityService.kt')
+          s = service.read_text().replace(
+              'rootInActiveWindow?.let { browserSnapshot(it).second }.orEmpty()',
+              'rootInActiveWindow?.let { browserSnapshot(it, pkg).second }.orEmpty()'
+          )
+          service.write_text(s)
+          PY
+          rm -f DrFocus-v1.0.0-source.zip DrFocus-v1.1.0-source.zip
           zip -qr DrFocus-v1.1.0-source.zip DrFocus
           sha256sum DrFocus-v1.1.0-source.zip
 
