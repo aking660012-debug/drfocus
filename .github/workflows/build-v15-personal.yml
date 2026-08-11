@@ -2,7 +2,7 @@ name: Build DrFocus 1.5 Personal Web Strict
 
 on:
   push:
-    branches: [ "v15-web-strict-overhaul" ]
+    branches: [ "main", "v15-web-strict-overhaul" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
