@@ -21,7 +21,8 @@ jobs:
         shell: bash
         run: |
           cat project.part1.b64 project.part2.b64 project.part3.b64 project.part4.b64 > project.b64
-          base64 --decode project.b64 > DrFocus-project.zip
+          tr -d '\r\n\t ' < project.b64 | base64 --decode --ignore-garbage > DrFocus-project.zip
+          unzip -t DrFocus-project.zip
           unzip -q DrFocus-project.zip
 
       - name: Set up JDK 17
