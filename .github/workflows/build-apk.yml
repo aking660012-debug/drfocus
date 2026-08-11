@@ -20,13 +20,13 @@ jobs:
       - name: Reconstruct project archive
         shell: bash
         run: |
-          wc -c project.part1.b64 project.part2.b64 project.part3.b64 project.part4.b64
-          cat project.part1.b64 project.part2.b64 project.part3.b64 project.part4.b64 > project.b64
+          wc -c project.part1.b64 project.part2.b64 project.part3a.b64 project.part3b.b64 project.part4.b64
+          cat project.part1.b64 project.part2.b64 project.part3a.b64 project.part3b.b64 project.part4.b64 > project.b64
           python3 - <<'PY'
           import base64, pathlib
           s=''.join(pathlib.Path('project.b64').read_text().split())
           print('combined chars:', len(s))
-          data=base64.b64decode(s, validate=False)
+          data=base64.b64decode(s, validate=True)
           pathlib.Path('DrFocus-project.zip').write_bytes(data)
           print('zip bytes:', len(data))
           PY
