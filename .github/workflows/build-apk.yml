@@ -20,48 +20,17 @@ jobs:
       - name: Reconstruct DrFocus 1.0 source
         shell: bash
         run: |
+          cat v10.part01.b64 v10.part02.b64 v10.part03.b64 v10.tail01.b64 v10.tail02.b64 v10.tail03a.b64 v10.tail03b.b64 v10.tail04.b64 > v10-project.b64
           python3 - <<'PY'
-          import base64, hashlib
-          from pathlib import Path
-
-          names = [
-              'v10.part01.b64', 'v10.part02.b64', 'v10.part03.b64',
-              'v10.tail01.b64', 'v10.tail02.b64', 'v10.tail03.b64', 'v10.tail04.b64'
-          ]
-          chunks = {n: ''.join(Path(n).read_text().split()) for n in names}
-          target = 'aaad3035b3a411773b2bcd525ff1d5596c9d51e89cf3806b62d148100560c766'
-
-          expected_sizes = [8000, 8000, 8000, 16000, 16000, 16000, 13556]
-          print('chunk sizes:', [len(chunks[n]) for n in names])
-
-          def try_source(parts):
-              source = ''.join(parts)
-              try:
-                  data = base64.b64decode(source, validate=True)
-              except Exception:
-                  return None
-              return data if hashlib.sha256(data).hexdigest() == target else None
-
-          parts = [chunks[n] for n in names]
-          data = try_source(parts)
-
-          # Connector text transport added one character to tail03. Recover only if
-          # removing exactly one character produces the cryptographically expected archive.
-          if data is None and len(chunks['v10.tail03.b64']) == 16001:
-              bad = chunks['v10.tail03.b64']
-              for i in range(len(bad)):
-                  candidate = bad[:i] + bad[i+1:]
-                  candidate_parts = [chunks[n] if n != 'v10.tail03.b64' else candidate for n in names]
-                  data = try_source(candidate_parts)
-                  if data is not None:
-                      print('recovered source by removing transport character at tail03 index', i)
-                      break
-
-          assert data is not None, 'Unable to reconstruct exact DrFocus 1.0 source archive'
+          import base64, pathlib, hashlib
+          source = ''.join(pathlib.Path('v10-project.b64').read_text().split())
+          print('encoded length:', len(source))
+          assert len(source) == 85556
+          data = base64.b64decode(source, validate=True)
           digest = hashlib.sha256(data).hexdigest()
           print('source sha256:', digest)
-          assert digest == target
-          Path('DrFocus-v1.0.0-source.zip').write_bytes(data)
+          assert digest == 'aaad3035b3a411773b2bcd525ff1d5596c9d51e89cf3806b62d148100560c766'
+          pathlib.Path('DrFocus-v1.0.0-source.zip').write_bytes(data)
           PY
           unzip -t DrFocus-v1.0.0-source.zip
           unzip -q DrFocus-v1.0.0-source.zip
