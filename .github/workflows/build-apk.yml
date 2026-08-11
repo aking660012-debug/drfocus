@@ -1,8 +1,8 @@
-name: Build DrFocus Commercial
+name: Build DrFocus 1.1 Hardened
 
 on:
   push:
-    branches: [ "main", "v10-commercial" ]
+    branches: [ "main", "v11-hardening-2" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
           unzip -t DrFocus-v1.0.0-source.zip
           unzip -q DrFocus-v1.0.0-source.zip
 
-      - name: Normalize generated source and release dependencies
+      - name: Normalize v1.0 generated source
         shell: bash
         run: |
           python3 - <<'PY'
@@ -57,8 +57,15 @@ jobs:
                   g = g.replace('dependencies {\n', 'dependencies {\n' + fragment_dep)
           gradle.write_text(g)
           PY
-          rm DrFocus-v1.0.0-source.zip
-          zip -qr DrFocus-v1.0.0-source.zip DrFocus
+
+      - name: Apply DrFocus 1.1 hardening patch
+        shell: bash
+        run: |
+          cat v11patch.part01.b64 v11patch.part02.b64 v11patch.part03.b64 | base64 -d | gzip -d > v11.patch
+          patch -p1 < v11.patch
+          rm -f DrFocus-v1.0.0-source.zip
+          zip -qr DrFocus-v1.1.0-source.zip DrFocus
+          sha256sum DrFocus-v1.1.0-source.zip
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -85,17 +92,17 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          cp DrFocus/app/build/outputs/apk/debug/app-debug.apk DrFocus-v1.0.0-debug.apk
-          cp DrFocus/app/build/outputs/bundle/release/app-release.aab DrFocus-v1.0.0-release-unsigned.aab
+          cp DrFocus/app/build/outputs/apk/debug/app-debug.apk DrFocus-v1.1.0-debug.apk
+          cp DrFocus/app/build/outputs/bundle/release/app-release.aab DrFocus-v1.1.0-release-unsigned.aab
 
-      - name: Upload commercial build
+      - name: Upload hardened build
         uses: actions/upload-artifact@v4
         with:
-          name: DrFocus-v1.0.0-Commercial
+          name: DrFocus-v1.1.0-Hardened
           path: |
-            DrFocus-v1.0.0-debug.apk
-            DrFocus-v1.0.0-release-unsigned.aab
-            DrFocus-v1.0.0-source.zip
+            DrFocus-v1.1.0-debug.apk
+            DrFocus-v1.1.0-release-unsigned.aab
+            DrFocus-v1.1.0-source.zip
             DrFocus/docs/PRIVACY_POLICY.md
             DrFocus/docs/PLAY_CONSOLE_CHECKLIST.md
             DrFocus/docs/STORE_LISTING.md
