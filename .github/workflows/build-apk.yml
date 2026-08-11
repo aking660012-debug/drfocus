@@ -37,8 +37,7 @@ jobs:
           p=Path('DrFocus/app/build.gradle.kts')
           s=p.read_text()
           s=s.replace('    kotlinOptions { jvmTarget = "17" }\n','')
-          s=s.replace('androidx.lifecycle:lifecycle-runtime-compose:2.11.0','androidx.lifecycle:lifecycle-runtime-compose:2.10.0')
-          s=s.replace('androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0','androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0')
+          s=s.replace('2.11.0','2.10.0')
           s += '\n\nkotlin {\n    compilerOptions {\n        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)\n    }\n}\n'
           p.write_text(s)
           print(p.read_text())
