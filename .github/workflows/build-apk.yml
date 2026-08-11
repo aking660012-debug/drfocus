@@ -34,18 +34,28 @@ jobs:
           unzip -t DrFocus-v1.0.0-source.zip
           unzip -q DrFocus-v1.0.0-source.zip
 
-      - name: Normalize generated Kotlin source
+      - name: Normalize generated source and release dependencies
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/service/FocusAccessibilityService.kt')
-          s = p.read_text()
+
+          service = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/service/FocusAccessibilityService.kt')
+          s = service.read_text()
           broken = "append('\n')"
-          # In the generated archive the sequence above contains an actual newline
-          # between the character quotes; convert it to the valid Kotlin escaped form.
           s = s.replace(broken, "append('\\n')")
-          p.write_text(s)
+          service.write_text(s)
+
+          gradle = Path('DrFocus/app/build.gradle.kts')
+          g = gradle.read_text()
+          fragment_dep = '    implementation("androidx.fragment:fragment-ktx:1.8.9")\n'
+          if 'androidx.fragment:fragment-ktx:' not in g:
+              anchor = '    implementation("androidx.activity:activity-compose:1.13.0")\n'
+              if anchor in g:
+                  g = g.replace(anchor, anchor + fragment_dep)
+              else:
+                  g = g.replace('dependencies {\n', 'dependencies {\n' + fragment_dep)
+          gradle.write_text(g)
           PY
           rm DrFocus-v1.0.0-source.zip
           zip -qr DrFocus-v1.0.0-source.zip DrFocus
