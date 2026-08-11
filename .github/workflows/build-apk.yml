@@ -1,8 +1,8 @@
-name: Build DrFocus 1.1 Hardened
+name: Build DrFocus 1.2 Overhaul
 
 on:
   push:
-    branches: [ "main", "v11-hardening-2" ]
+    branches: [ "main", "v12-overhaul" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -39,11 +39,9 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           service = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/service/FocusAccessibilityService.kt')
           s = service.read_text()
-          broken = "append('\n')"
-          s = s.replace(broken, "append('\\n')")
+          s = s.replace("append('\n')", "append('\\n')")
           service.write_text(s)
 
           gradle = Path('DrFocus/app/build.gradle.kts')
@@ -64,12 +62,11 @@ jobs:
           cat v11patch.part01.b64 v11patch.part02.b64 v11patch.part03.b64 | base64 -d | gzip -d > v11.patch
           patch -p1 < v11.patch
 
-      - name: Fix hardening compile regressions
+      - name: Fix v1.1 compile regressions
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           main = Path('DrFocus/app/src/main/java/com/drahmed/drfocus/MainActivity.kt')
           s = main.read_text()
           s = s.replace(
@@ -93,9 +90,15 @@ jobs:
           )
           service.write_text(s)
           PY
-          rm -f DrFocus-v1.0.0-source.zip DrFocus-v1.1.0-source.zip
-          zip -qr DrFocus-v1.1.0-source.zip DrFocus
-          sha256sum DrFocus-v1.1.0-source.zip
+
+      - name: Apply DrFocus 1.2 overhaul patch
+        shell: bash
+        run: |
+          cat v12x.part00 v12x.part01 v12x.part02 v12x.part03 v12x.part04 v12x.part05 | base64 -d | gzip -d > v12.patch
+          patch -p1 -d DrFocus < v12.patch
+          rm -f DrFocus-v1.0.0-source.zip
+          zip -qr DrFocus-v1.2.0-source.zip DrFocus
+          sha256sum DrFocus-v1.2.0-source.zip
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -108,31 +111,41 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Run unit tests
+      - name: Run Play unit tests
         working-directory: DrFocus
-        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+        run: gradle :app:testPlayDebugUnitTest --no-daemon --stacktrace
 
-      - name: Build debug APK
+      - name: Run Personal unit tests
         working-directory: DrFocus
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: gradle :app:testPersonalDebugUnitTest --no-daemon --stacktrace
 
-      - name: Build Play release bundle
+      - name: Build Personal Hardened APK
         working-directory: DrFocus
-        run: gradle :app:bundleRelease --no-daemon --stacktrace
+        run: gradle :app:assemblePersonalDebug --no-daemon --stacktrace
+
+      - name: Build Play debug APK
+        working-directory: DrFocus
+        run: gradle :app:assemblePlayDebug --no-daemon --stacktrace
+
+      - name: Build Google Play AAB
+        working-directory: DrFocus
+        run: gradle :app:bundlePlayRelease --no-daemon --stacktrace
 
       - name: Prepare artifacts
         run: |
-          cp DrFocus/app/build/outputs/apk/debug/app-debug.apk DrFocus-v1.1.0-debug.apk
-          cp DrFocus/app/build/outputs/bundle/release/app-release.aab DrFocus-v1.1.0-release-unsigned.aab
+          cp DrFocus/app/build/outputs/apk/personal/debug/app-personal-debug.apk DrFocus-v1.2.0-personal-hardened.apk
+          cp DrFocus/app/build/outputs/apk/play/debug/app-play-debug.apk DrFocus-v1.2.0-play-debug.apk
+          cp DrFocus/app/build/outputs/bundle/playRelease/app-play-release.aab DrFocus-v1.2.0-play-release-unsigned.aab
 
-      - name: Upload hardened build
+      - name: Upload DrFocus 1.2 build
         uses: actions/upload-artifact@v4
         with:
-          name: DrFocus-v1.1.0-Hardened
+          name: DrFocus-v1.2.0-Overhaul
           path: |
-            DrFocus-v1.1.0-debug.apk
-            DrFocus-v1.1.0-release-unsigned.aab
-            DrFocus-v1.1.0-source.zip
+            DrFocus-v1.2.0-personal-hardened.apk
+            DrFocus-v1.2.0-play-debug.apk
+            DrFocus-v1.2.0-play-release-unsigned.aab
+            DrFocus-v1.2.0-source.zip
             DrFocus/docs/PRIVACY_POLICY.md
             DrFocus/docs/PLAY_CONSOLE_CHECKLIST.md
             DrFocus/docs/STORE_LISTING.md
